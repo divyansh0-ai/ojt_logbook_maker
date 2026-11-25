@@ -29,6 +29,27 @@ def format_date(date_str: str) -> str:
 
 
 # ─────────────────────────────────────────────
+# ✅ RESPONSE TEXT EXTRACTOR (handles multi-part responses)
+# ─────────────────────────────────────────────
+def extract_text(response) -> str:
+    """Join the text of all parts; `response.text` fails on multi-part responses."""
+    candidates = getattr(response, "candidates", None) or []
+    if not candidates:
+        feedback = getattr(response, "prompt_feedback", None)
+        raise Exception(f"Gemini returned no candidates (prompt feedback: {feedback})")
+
+    parts = getattr(candidates[0].content, "parts", None) or []
+    texts = [
+        p.text for p in parts
+        if getattr(p, "text", "") and not getattr(p, "thought", False)
+    ]
+    if not texts:
+        reason = getattr(candidates[0], "finish_reason", "unknown")
+        raise Exception(f"Gemini returned no text (finish reason: {reason})")
+    return "".join(texts)
+
+
+# ─────────────────────────────────────────────
 # ✅ SAFE GEMINI CALL (handles 429)
 # ─────────────────────────────────────────────
 def call_gemini(model, prompt, retries=3):
@@ -41,7 +62,7 @@ def call_gemini(model, prompt, retries=3):
                     "top_p": 0.9,
                 }
             )
-            text = response.text.strip()
+            text = extract_text(response).strip()
             text = re.sub(r'^```(?:json)?\s*', '', text)
             text = re.sub(r'\s*```$', '', text)
             return text
@@ -59,7 +80,7 @@ def call_gemini(model, prompt, retries=3):
 # ─────────────────────────────────────────────
 def split_work_into_days(api_key: str, work_description: str, dates: list, num_days: int) -> list:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash-lite')
+    model = genai.GenerativeModel('gemini-3.5-flash-lite')
 
     prompt = f"""
 You are a professional OJT training supervisor.
@@ -108,7 +129,7 @@ WORK:
 # ─────────────────────────────────────────────
 def generate_all_journals(api_key: str, daily_data: list) -> list:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash-lite')
+    model = genai.GenerativeModel('gemini-3.5-flash-lite')
 
     combined_input = "\n".join([
         f"Day {d['day']} ({d['date']}): {d['work']}"
@@ -190,7 +211,7 @@ def generate_full_entries(api_key: str, work_description: str, dates: list):
 def generate_journal_entry(api_key: str, date: str, work: str) -> dict:
     """Generate structured journal entry for one day using Gemini."""
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash-lite')
+    model = genai.GenerativeModel('gemini-3.5-flash-lite')
     
     # Format date to DD-M-YYYY
     formatted_date = format_date(date)

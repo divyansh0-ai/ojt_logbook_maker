@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: ojt-journal-maker
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # Single worker: tasks are kept in memory, so all requests must hit one process.
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.14.0

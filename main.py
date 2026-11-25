@@ -86,10 +86,20 @@ def get_working_days(start: datetime, end: datetime, skip: list) -> list:
     current = start.date()
     end_date = end.date()
     while current <= end_date:
-        if current.weekday() < 5 and current not in skip_set:
+        if current.weekday() < 6 and current not in skip_set:
             days.append(current.strftime("%Y-%m-%d"))
         current += timedelta(days=1)
     return days
+
+
+def format_date_with_ordinal(dt: datetime) -> str:
+    """Format a datetime object to a string like '2nd February, 2026'."""
+    day = dt.day
+    if 11 <= (day % 100) <= 13:
+        suffix = 'th'
+    else:
+        suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
+    return f"{day}{suffix} {dt.strftime('%B, %Y')}"
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +302,7 @@ async def upload(
             "user_details": {
                 "name": name,
                 "registration_number": registration_number,
-                "start_date": start_date,
+                "start_date": format_date_with_ordinal(start_dt),
                 "program_name": program_name,
                 "semester": semester,
                 "location": location,
@@ -403,3 +413,7 @@ async def download_template():
 
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
